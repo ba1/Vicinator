@@ -1,0 +1,17 @@
+#local cmd history
+*.dir_bash_history
+
+#testpipy token
+.pypirc
+
+#testdata directory
+.mytestdata*
+
+#deployment directories and files
+dist/*
+build/*
+*.egg-info/*
+
+#IdeaJ JetBrain PyCharm Files
+**/.idea/workspace.xml
+**/.idea/tasks.xml
