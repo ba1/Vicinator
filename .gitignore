@@ -1,5 +1,5 @@
 #local cmd history
-*.dir_bash_history
+**.dir_bash_history
 
 #testpipy token
 .pypirc
