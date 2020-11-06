@@ -78,12 +78,12 @@ def parse_args():
 
     return parser.parse_args()
 
-class Window:
-    def __init__(self):
-        self.ref_indices=[]
-        self.ogs = []
-        self.directions = []
-        self.center = None
+# class Window:
+#     def __init__(self):
+#         self.ref_indices=[]
+#         self.ogs = []
+#         self.directions = []
+#         self.center = None
 
 
 class Genome:
@@ -428,7 +428,15 @@ def getTaxonOrder(treepath, ref_path ):
     '''Parses tree from given path to a newick tree. Locates the specified reference taxon and outputs
     a sorted list of ascending topological distances of each taxon to the reference taxon'''
 
-    refname = "_".join(os.path.basename(ref_path).split('_',2)[:2])
+    p = pathlib.Path(ref_path)
+    if p.suffix == ".txt":
+        refname = p.stem.replace("_feature_table",'')
+    elif p.suffix == ".gff":
+        refname = p.stem
+    else:
+        refname =  "XXX"
+        logging.warning("Reference name could not be found in provided tree, returning neighborhoods in arbitrary order")
+    #refname = "_".join(os.path.basename(ref_path).split('_',2)[:2])
     #dist_list = []
     leaf_list = []
     try:
@@ -437,7 +445,7 @@ def getTaxonOrder(treepath, ref_path ):
         logging.warning("Provided tree does not have standard newick format. Now attempting to parse with must flexible format")
         t = ete3.Tree(treepath, format=5,  quoted_node_names=True)
 
-    for leafnode in t.iter_leaves():
+    for i, leafnode in enumerate(t.iter_leaves()):
         if leafnode.name == refname:
             leafnode.name = '000'
             t.sort_descendants(attr='name')
@@ -602,6 +610,7 @@ def main():
     converter = Ansi2HTMLConverter(dark_bg=False, scheme="solarized", markup_lines=True)
 
     for t in taxon_feature_files:
+        logging.info("Starting attempt to profile neighborhood in {} ..".format(t))
         g = profile_genome(t, window_ogs, ogtable, center, k)
 
         #runprofile.enable()
