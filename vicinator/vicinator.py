@@ -431,7 +431,11 @@ def getTaxonOrder(treepath, ref_path ):
     refname = "_".join(os.path.basename(ref_path).split('_',2)[:2])
     #dist_list = []
     leaf_list = []
-    t = ete3.Tree(treepath)
+    try:
+        t = ete3.Tree(treepath)
+    except:
+        logging.warning("Provided tree does not have standard newick format. Now attempting to parse with must flexible format")
+        t = ete3.Tree(treepath, format=5)
 
     for leafnode in t.iter_leaves():
         if leafnode.name == refname:
