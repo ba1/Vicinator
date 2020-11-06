@@ -432,10 +432,10 @@ def getTaxonOrder(treepath, ref_path ):
     #dist_list = []
     leaf_list = []
     try:
-        t = ete3.Tree(treepath)
+        t = ete3.Tree(treepath, quoted_node_names=True)
     except:
         logging.warning("Provided tree does not have standard newick format. Now attempting to parse with must flexible format")
-        t = ete3.Tree(treepath, format=5)
+        t = ete3.Tree(treepath, format=5,  quoted_node_names=True)
 
     for leafnode in t.iter_leaves():
         if leafnode.name == refname:
@@ -509,8 +509,6 @@ def main():
 
     # IDENTIFY CENTRAL PROTEIN
     center_index_list = ref_g.findProteinAccessionIndices(args.centerprotein_accession)
-
-    print(center_index_list, args.centerprotein_accession)
 
     if len(center_index_list) > 1:
         logging.info("Given identifier of central feature has multiple hits. Only the first appearance is considered.")
