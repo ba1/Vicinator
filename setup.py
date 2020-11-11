@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="Vicinator", # Replace with your own username
-    version="0.0.7",
+    version="0.0.9",
     author="Ba1",
     author_email="djahanschiri@bio.uni-frankfurt.de",
     description="A small python package to trace orthology neighborhood across feature files",

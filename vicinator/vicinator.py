@@ -176,14 +176,20 @@ class Genome:
 
         pos_dict = dict()
         pruned_ogtable = ogtable[ogtable.index.isin([self.name], level=0)] #slice OGtable to Genome
+        if pruned_ogtable.empty:
+            logging.warning('Pruning Group Table to {} gives empty table. Trying fuzzy name resolving.' )
+            pruned_ogtable = ogtable[ogtable.index.isin([
+                "_".join(self.name.split('_')[:2])], level=0)] #slice OGtable to Genome
         #pruned_ogtable.columns = pruned_ogtable.columns.get_level_values(0)
         pruned_ogtable.reset_index(level=pruned_ogtable.index.names, inplace=True) #remove multilevel
         pruned_ogtable.drop(['Taxon'], axis=1, inplace=True) #remove the new Taxon column
         pruned_ogtable.set_index('PA', inplace=True)
         all_relevant_ogs = [og for ogset in window_ogs for og in ogset if type(og) == str]
+
         pruned_ogtable = pruned_ogtable[pruned_ogtable["OG"].isin(all_relevant_ogs)] #drop all non-window OGs
 
         pa2og_dict = pruned_ogtable.to_dict()["OG"]
+
 
         for i, ogset in enumerate(window_ogs):
             for og in ogset:
@@ -203,6 +209,7 @@ class Genome:
 
         self.feature_df["window_position"] = self.feature_df["OG"].map(pos_dict)
         self.OrientAnnotatedContigs(center_strand)
+
         #print(self.feature_df[["OG","window_position"]].dropna())
 
     def getOGidFromTable(self, ogtable, genome, pa):
@@ -225,13 +232,16 @@ class Genome:
 
     def findProteinAccessionIndices(self, protein_accession):
         '''find the product accession and identify the index of its corresponding gene feature in a preceding row'''
+
         indices = self.feature_df[self.feature_df['product_accession'].astype(str).str.contains(protein_accession).fillna(False)].index.values
+
         return indices
 
     def findProteinAccessionIndicesOfWindow(self, k, center):
         '''get upstream and downstream neighboring indexes of CDS and their gene feature'''
 
         center_genomic_accession = self.feature_df.loc[center.name]['genomic_accession']
+
         filter1 = self.feature_df['class'] == 'protein_coding'
         filter2 = self.feature_df['genomic_accession'] == center_genomic_accession
         df = self.feature_df[filter1 & filter2]
@@ -322,10 +332,31 @@ def readOGTable(orthotable_filepath, outdir):
 
 
 def AggregateProductsOfProteinCodingGenes(ft_df):
-    temp = ft_df[ft_df['feature'] == 'CDS'].groupby(['GeneID'], sort=False)[['product_accession']].agg(
+
+    # Investigate which is best suited as grouping column or create a new one based on Parent ID relationship:
+
+    groupers = ['GeneID', 'locus_tag', 'NEW_grouper']
+    for i, grouper in enumerate(groupers):
+        if not ft_df[ft_df['feature'] == 'gene'][grouper].dropna().empty \
+                and not ft_df[ft_df['feature'] == 'CDS'][grouper].dropna().empty:
+            break
+        if i == len(groupers) - 2:
+            grouper = groupers[-1]
+            break
+
+    if grouper == 'NEW_grouper':
+        ft_df[grouper] = ft_df['parent']
+        ft_df.loc[ft_df['feature'] == 'gene', grouper] = ft_df['ID']
+
+    #print('GROUPER used', grouper)
+
+    temp = ft_df[ft_df['feature'] == 'CDS'].groupby([grouper], sort=False)[['product_accession']].agg(
         set).reset_index()
-    ft_df = pd.merge(ft_df, temp, on=['GeneID'], sort=False, how='left')
+
+    ft_df = pd.merge(ft_df, temp, on=[grouper], sort=False, how='left')
+
     ft_df = ft_df.drop('product_accession_x', axis=1).rename({'product_accession_y': 'product_accession'}, axis=1)
+
     ft_df = ft_df[ft_df['feature'] == 'gene']
 
     return ft_df
@@ -397,11 +428,15 @@ def parseGFF3(gff3_path):
     ft_df = ft_df[~ft_df['feature'].isin(['exon', 'transcript', 'mRNA'])]
 
     for cname, attrid in [('product_accession','Name'),
-                                     ('class', 'gene_biotype')]:
+                          ('class', 'gene_biotype'),
+                          ('locus_tag', 'locus_tag'),
+                          ('parent', 'Parent'),
+                          ('ID', 'ID')]:
         ft_df[cname] = ft_df['attributes'].str.split(attrid+'=', n=1, expand=True)[1] \
         .str.split(';',n=1,expand=True)[0]
 
-    ft_df['GeneID'] =  ft_df['attributes'].str.extract(r'GeneID:([\d]+)')[0] #better extract from within the Dbxref= attribute ?
+    ft_df['GeneID'] = ft_df['attributes'].str.extract(r'Dbxref=.?GeneID:([\d]+)')[0] #better extract from within the Dbxref= attribute ?
+
     ft_df.loc[(ft_df['feature'] == 'CDS') & (ft_df['attributes'].str.contains('protein_id=')), 'class'] = 'with_protein'
 
     return AggregateProductsOfProteinCodingGenes(ft_df)
@@ -468,13 +503,17 @@ def profile_genome(t, window_ogs, ogtable, center, extension_size):
 
     genome_name = t.stem.replace('_feature_table', '').replace('_genomic', '')
     g = Genome(genome_name, ft_df)
+
+    import traceback
     try:
         # only_window_ogtable = ogtable[ogtable["OG"].isin(window_ogs)]
         # g.annotWindowHOGs(window_ogs, only_window_ogtable)
         g.annotWindowOGs(window_ogs, ogtable, center.loc["strand"], extension_size)
     except:
-        logging.info('No orthology information found for the taxon string:' + g.name + '. Ignoring taxon.')
+        logging.info('No orthology information found for the taxon:' + g.name + '. Ignoring taxon.')
+        tb = traceback.format_exc()
         return None
+
     g.orderContigs()
 
     return g
@@ -490,10 +529,17 @@ def main():
     pd.set_option('mode.chained_assignment', None)
 
     logfilepath = pathlib.Path(args.outdir) / 'vicinator.log'
-    logging.basicConfig(filename=str(logfilepath), level=logging.INFO,
-                            format='%(asctime)s %(levelname)-8s %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S'
+    #logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+    logging.basicConfig(#filename=str(logfilepath),
+                        level=logging.INFO,
+                        format='%(asctime)s %(levelname)-8s %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        handlers=[
+                            logging.FileHandler(str(logfilepath)),
+                            logging.StreamHandler() #to sys.stderr by default
+                            ]
                         )
+    logging.getLogger().handlers[1].setLevel(logging.CRITICAL)
 
     ####################################
 
@@ -512,8 +558,8 @@ def main():
     else:
         raise TypeError("Filetype not supported, {}".format(reference_genome_feature_file_path))
 
-
     ref_g = Genome(reference_genome_accession, ref_ft_df)
+
 
     # IDENTIFY CENTRAL PROTEIN
     center_index_list = ref_g.findProteinAccessionIndices(args.centerprotein_accession)
@@ -521,17 +567,19 @@ def main():
     if len(center_index_list) > 1:
         logging.info("Given identifier of central feature has multiple hits. Only the first appearance is considered.")
     elif len(center_index_list) < 1:
-        logging.exception("Given center protein accession {} not found reference feature file {}.".format(args.centerprotein_accession,
+        logging.exception("Center protein {} not found in reference feature file {}.".format(args.centerprotein_accession,
                                                                                                          args.ref_feat_table.name),
-                          exc_info=True)
+                          #exc_info=True
+                          )
+
         quit()
 
     center = ref_g.feature_df.loc[center_index_list[0]] #only take the first of all hits of the central protein
 
     #FIND UPSTREAM AND DOWNSTREAM PROTEINS
-    k = int(args.k)
+    extension_size = int(args.k)
 
-    window = ref_g.findProteinAccessionIndicesOfWindow(k, center)
+    window = ref_g.findProteinAccessionIndicesOfWindow(extension_size, center)
 
     prot_accessions = [ref_g.feature_df.loc[i]["product_accession"] if i != "" else "" for i in window]
 
@@ -610,19 +658,25 @@ def main():
     converter = Ansi2HTMLConverter(dark_bg=False, scheme="solarized", markup_lines=True)
 
     for t in taxon_feature_files:
-        logging.info("Starting attempt to profile neighborhood in {} ..".format(t))
-        g = profile_genome(t, window_ogs, ogtable, center, k)
+        logging.info("[{}] profiling ...".format(t))
 
-        #runprofile.enable()
-        str_out = g.produceCMDLOutput(label_map=label_map)
-        #res = fg.WHITE + bg.BLACK + "IHateThis" + Style.RESET_ALL
-        #runprofile.disable()
-        #stats = pstats.Stats(runprofile).sort_stats('cumtime')
-        #stats.print_stats(10)
+        g = profile_genome(t, window_ogs, ogtable, center, extension_size)
+
+
         
+        if g:
+            # runprofile.enable()
+            str_out = g.produceCMDLOutput(label_map=label_map)
+            # res = fg.WHITE + bg.BLACK + "IHateThis" + Style.RESET_ALL
+            # runprofile.disable()
+            # stats = pstats.Stats(runprofile).sort_stats('cumtime')
+            # stats.print_stats(10)
         if str_out:
             print(str_out)
             full_output.append(str_out)
+            logging.info("[{}] ... OK.".format(t))
+        else:
+            logging.info("[{}] ... Failed.".format(t))
         gc.collect()
 
     full_output = "\n".join(full_output)
