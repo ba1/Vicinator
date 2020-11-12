@@ -1,0 +1,10 @@
+language: python
+
+deploy:
+  provider: pypi
+  username: __token__
+  password: "pH3/CdsaW5xc58Qfitivr5Uy0fOt4KyNMqD3LGdEkwgcNI6/G0amPDSDdW4g2kW07cy/nBGMPePtk59oJi0C++Sa8qULhHamIPXSopB4p92XHEXHrzFpBNSjTS/mUn0zC2rBpi9DXMo2j6DtmVh7VaPgmHDf6u+i3pnxZi/GzgeV5jlfglsJOw+J+eVmXRAEqvNdlchyGPE+k5GoeNzslrDUMjqnTDq++I4zR/ftlgMpsv6hxM4aNBLTAi5pc8wlE4V4WQRoyxRaJxK1hlaqqismgkJIQUZnqLe3uJrh2b6LtCNwYFT7ZkGayYqtPs86j5P4u5cry8/Ekt5B/6hShNXpFPOzugMEJC6boLEDPkYzoJUgWDHxB48QZ6NtgrelsstYJcGY8Z5kiqWaxUlQCPLlljb9IIY8s4xD8ZnVYECCmq1m5kRmMwpDsxql8ji2//UHUHUT58XW+2p8ng7rsHSDgsgH7XZSiCi814etYh6CWQxBUrD6ld8vkYyLclLSo3PE4D+mgKdCYJmXm+LkY1jp1xE59QLABd2afXT5MFAcxDyZUusy/gcs+xMg9XRIgL3AGdnrPqlnUYEafH4yf+5pGxDt9tY5y5JJnOz0AiSpKIYrscTzz0A/hIaBnUGayUr2hes6oSVj3ZXmG5AZzKftsJWM2zazkc9k4wa7Grw="
+  on:
+    tags: true
+  skip_existing: true
+  edge: true

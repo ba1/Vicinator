@@ -4,9 +4,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="Vicinator", # Replace with your own username
+    name="Vicinator",
     version="0.0.9",
     author="Ba1",
+    use_scm_version=True,
+    setup_requires=['setuptools_scm'],
     author_email="djahanschiri@bio.uni-frankfurt.de",
     description="A small python package to trace orthology neighborhood across feature files",
     long_description=long_description,

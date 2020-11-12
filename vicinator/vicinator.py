@@ -24,6 +24,14 @@ import pathlib
 import gc
 #from beautifultable import BeautifulTable
 
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version(__name__)
+except PackageNotFoundError:
+    # package is not installed
+   pass
+
 def writeable_dir(prospective_dir):
     """
     Defines a class for the argparse argument type
@@ -73,7 +81,7 @@ def parse_args():
                         default=None,
                         help='Optional mapping file feature file accession <tabs> replacement string')
 
-    parser.add_argument('--version', action='version', version='0.0.5')
+    parser.add_argument('--version', action='version', version=__version__)
 
 
     return parser.parse_args()
@@ -189,7 +197,6 @@ class Genome:
         pruned_ogtable = pruned_ogtable[pruned_ogtable["OG"].isin(all_relevant_ogs)] #drop all non-window OGs
 
         pa2og_dict = pruned_ogtable.to_dict()["OG"]
-
 
         for i, ogset in enumerate(window_ogs):
             for og in ogset:
@@ -317,15 +324,15 @@ class Genome:
             return self.name + '\t' + ' '.join(basket_list)
 
 def readOGTable(orthotable_filepath, outdir):
-    if not os.path.exists(os.path.join(outdir, "ogtable.pickle")):
+    if not os.path.exists(os.path.join(outdir, "vicinator.ogtable.pickle")):
         ogtable = pd.read_csv(orthotable_filepath, sep='\t', index_col=[1,2], comment='#',
                     names=["OG", "Taxon", "PA"])
 
-        outfile = open(os.path.join(outdir, "ogtable.pickle"), "wb")
+        outfile = open(os.path.join(outdir, "vicinator.ogtable.pickle"), "wb")
         pickle.dump(ogtable, outfile)
 
     else:
-        infile = open(os.path.join(outdir,"ogtable.pickle"), "rb")
+        infile = open(os.path.join(outdir,"vicinator.ogtable.pickle"), "rb")
         ogtable = pickle.load(infile)
 
     return ogtable
@@ -475,7 +482,7 @@ def getTaxonOrder(treepath, ref_path ):
     #dist_list = []
     leaf_list = []
     try:
-        t = ete3.Tree(treepath, quoted_node_names=True)
+        t = ete3.Tree(treepath)
     except:
         logging.warning("Provided tree does not have standard newick format. Now attempting to parse with must flexible format")
         t = ete3.Tree(treepath, format=5,  quoted_node_names=True)
@@ -608,8 +615,12 @@ def main():
     window_ogs_repr = []
 
     print('Window reference OGs:',
-              ['/'.join(ogset) if len(ogset) >= 1 else '-' for ogset in window_ogs])  # +1 to correct for 0-offset in ogmatrix
+              ['/'.join(ogset) if len(ogset) >= 1 else '-' for ogset in window_ogs])
 
+    if not any(window_ogs):
+        logging.critical('No OGs found in window. Aborting. tablular OG file correctly formatted?' + '\n' + \
+                         ' Changing it requires deleting *.pickle from output directory to force reparsing.')
+        quit()
 
     ##################################################################################
 
