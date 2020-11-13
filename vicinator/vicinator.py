@@ -24,13 +24,21 @@ import pathlib
 import gc
 #from beautifultable import BeautifulTable
 
-from importlib.metadata import version, PackageNotFoundError
-
+#### Get Version
 try:
+    from importlib.metadata import version, PackageNotFoundError
     __version__ = version(__name__)
-except PackageNotFoundError:
-    # package is not installed
-   pass
+except:
+    # if module or this python package is not installed
+    from pkg_resources import get_distribution, DistributionNotFound
+
+    try:
+        __version__ = get_distribution(__name__).version
+    except DistributionNotFound:
+         # package is not installed
+         __version__ = 'unspec'
+####
+
 
 def writeable_dir(prospective_dir):
     """
