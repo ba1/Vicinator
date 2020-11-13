@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 
-[coverage:run]
+[tool.coverage.run]
 branch = True
 source = vicinator/
 
-[coverage:report]
+[tool.coverage.report]
 exclude_lines =
     if self.debug:
     pragma: no cover
