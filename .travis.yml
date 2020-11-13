@@ -22,8 +22,7 @@ jobs:
 install: pip install --upgrade -r dev-requirements.txt
 
 script:
-  - pytest
-  - coverage run pytest
+  - pytest --cov=./
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

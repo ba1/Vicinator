@@ -4,5 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 
+[coverage:run]
+branch = True
+source = vicinator/
 
+[coverage:report]
+exclude_lines =
+    if self.debug:
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
+ignore_errors = True
+omit =
+    tests/*
 
