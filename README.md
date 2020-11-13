@@ -1,4 +1,4 @@
-[![Build status](https://travis-ci.org/ba1/travis-lab.svg?master)](https://travis-ci.org/ba1)
+[![Build Status](https://www.travis-ci.org/ba1/Vicinator.svg?branch=master)](https://www.travis-ci.org/ba1/Vicinator)
 [![codecov](https://codecov.io/gh/ba1/Vicinator/branch/master/graph/badge.svg)](https://codecov.io/gh/ba1/Vicinator)
 
 # Example Package
