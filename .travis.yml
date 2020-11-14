@@ -19,7 +19,7 @@ jobs:
     - name: "Python on Xenial Linux"
       python: 3.7    
 
-install: pip install --upgrade -r dev-requirements.txt
+install: pip3 install --upgrade -r dev-requirements.txt
 
 script:
   - pytest --cov=vicinator tests/
