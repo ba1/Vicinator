@@ -5,16 +5,39 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 
 [tool.coverage.run]
-branch = True
-source = vicinator/
+branch = true
+source = ["vicinator"]
 
 [tool.coverage.report]
-exclude_lines =
-    if self.debug:
-    pragma: no cover
-    raise NotImplementedError
-    if __name__ == .__main__.:
-ignore_errors = True
-omit =
-    tests/*
+exclude_lines = [
+    "if self.debug:",
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:"]
 
+ignore_errors = true
+omit = ["*/tests/*"]
+
+[tool.black]
+
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+
+exclude = ''' (
+  /(
+      \.eggs # exclude a few common directories in the
+    | \.git # root of the project 
+    | \.hg 
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | \.pypirc
+    | docs
+  )/
+)
+'''
