@@ -22,7 +22,7 @@ jobs:
 install: pip3 install --upgrade -r dev-requirements.txt
 
 script:
-  - pytest --cov=vicinator tests/
+  - pytest --cov=vicinator ./vicinator/tests/
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
