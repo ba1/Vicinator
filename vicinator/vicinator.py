@@ -92,10 +92,30 @@ def parse_args():
         help="path to newick tree that includes all taxa to be screened",
     )
 
+    #TODO: FUTURE_FEATURE
+    # parser.add_argument(
+    #     "--intergenic-distances",
+    #     dest="genedist",  # metavar='<newick_tree_file_path>',
+    #     action="store_true",
+    #     required=False,
+    #     help="if option is set, shows intergenic distances of genes surrounding the center gene",
+    # )
+
     parser.add_argument(
-        "--intergenic-distances",
-        dest="genedist",  # metavar='<newick_tree_file_path>',
+        "--force",
+        dest="force_new_database",  # metavar='<newick_tree_file_path>',
         action="store_true",
+        required=False,
+        default=False,
+        help="if option is set, existing ortholog databases in the output dir are ignored and will be overwritten",
+    )
+
+    parser.add_argument(
+        "--prefix",
+        dest="output_prefix",  # metavar='<newick_tree_file_path>',
+        action="store_true",
+        type=str,
+        metavar="<prefix_str_for_output>",
         required=False,
         help="if option is set, shows intergenic distances of genes surrounding the center gene",
     )
@@ -426,8 +446,9 @@ class Genome:
             return self.name + "\t" + " ".join(basket_list)
 
 
-def readOGTable(orthotable_filepath, outdir):
-    if not os.path.exists(os.path.join(outdir, "vicinator.ogtable.pickle")):
+def readOGTable(orthotable_filepath, outdir, force_new_database):
+    if not os.path.exists(os.path.join(outdir, "vicinator.ogtable.pickle")) or \
+            force_new_database:
         ogtable = pd.read_csv(
             orthotable_filepath,
             sep="\t",
@@ -707,7 +728,12 @@ def main():
 
     pd.set_option("mode.chained_assignment", None)
 
-    logfilepath = pathlib.Path(args.outdir) / "vicinator.log"
+    if args.output_prefix:
+        PREFIX = args.output_prefix
+    else:
+        PREFIX = "prot_{}_k_{}".format(args.centerprotein_accession, args.k)
+
+    logfilepath = pathlib.Path(args.outdir) / PREFIX + ".vicinator.log"
     # logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
     logging.basicConfig(  # filename=str(logfilepath),
         level=logging.INFO,
@@ -722,7 +748,7 @@ def main():
 
     ####################################
 
-    ogtable = readOGTable(args.ogtable.name, args.outdir)
+    ogtable = readOGTable(args.ogtable.name, args.outdir, args.force_new_database)
 
     reference_genome_feature_file_path = pathlib.Path(args.ref_feat_table.name)
     ref_name = reference_genome_feature_file_path.stem
@@ -884,7 +910,7 @@ def main():
         gc.collect()
 
     full_output = "\n".join(full_output)
-    htmloutputfilepath = pathlib.Path(args.outdir) / "vicinator.out.html"
+    htmloutputfilepath = pathlib.Path(args.outdir) / PREFIX + "vicinator.out.html"
     with open(htmloutputfilepath, "w") as htmlout:
         htmlout.write(converter.convert(full_output))
 
