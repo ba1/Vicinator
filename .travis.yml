@@ -1,4 +1,4 @@
-6language: python
+language: python
 python:
   #- 3.5 pandas v1 supports only Python 3.6.1 and higher
   - 3.6

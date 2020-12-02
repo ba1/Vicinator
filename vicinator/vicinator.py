@@ -774,11 +774,12 @@ def main():
 
     if len(center_index_list) > 1:
         logging.info(
-            "Given identifier of central feature has multiple hits. Only the first appearance is considered."
+            "centerprotein {} has multiple hits. Only the first hit is considered.".format(
+                args.centerprotein_accession)
         )
     elif len(center_index_list) < 1:
         logging.exception(
-            "Center protein {} not found in reference feature file {}.".format(
+            "Centerprotein {} not found in reference feature file {}.".format(
                 args.centerprotein_accession, args.ref_feat_table.name
             ),
             # exc_info=True
