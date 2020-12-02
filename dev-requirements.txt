@@ -7,3 +7,4 @@ coverage[toml]>=5.0.0
 pytest>=5.1.0
 pytest-cov>=2.1.0
 black==20.8b1
+importlib-metadata==3.1.1

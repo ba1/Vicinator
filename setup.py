@@ -25,7 +25,8 @@ setuptools.setup(
         "ansi2html>=1.5.2",
         "colorama>=0.4.4",
         "ete3>=3.1.2",
-        "pandas>=1.1.3"
+        "pandas>=1.1.3",
+        "importlib-metadata>=3.1.1"
     ],
     entry_points={
         'console_scripts': [

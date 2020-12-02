@@ -27,19 +27,27 @@ import gc
 # from beautifultable import BeautifulTable
 
 #### Get Version
+__version__ = "unspec"
 try:
     from importlib.metadata import version, PackageNotFoundError
 
     __version__ = version(__name__)
 except:
-    # if module or this python package is not installed
-    from pkg_resources import get_distribution, DistributionNotFound
-
     try:
-        __version__ = get_distribution(__name__).version
-    except DistributionNotFound:
-        # package is not installed
-        __version__ = "unspec"
+        # if the python version is <3.8 this module is used as backport
+        from importlib_metadata import version, PackageNotFoundError
+
+        __version__ = version(__name__)
+    except:
+        # if module or this python package is not installed
+        from pkg_resources import get_distribution, DistributionNotFound
+
+        try:
+            __version__ = get_distribution(__name__).version
+        # except DistributionNotFound:
+        except:
+            # package is not installed
+            __version__ = "unspec"
 ####
 
 
@@ -92,7 +100,7 @@ def parse_args():
         help="path to newick tree that includes all taxa to be screened",
     )
 
-    #TODO: FUTURE_FEATURE
+    # TODO: FUTURE_FEATURE
     # parser.add_argument(
     #     "--intergenic-distances",
     #     dest="genedist",  # metavar='<newick_tree_file_path>',
@@ -113,7 +121,6 @@ def parse_args():
     parser.add_argument(
         "--prefix",
         dest="output_prefix",  # metavar='<newick_tree_file_path>',
-        action="store_true",
         type=str,
         metavar="<prefix_str_for_output>",
         required=False,
@@ -378,6 +385,7 @@ class Genome:
 
         upstream = []
         downstream = []
+
         for i in range(1, k + 1):
             if c - i >= 0:
                 upstream.append(df.iloc[c - i].name)
@@ -447,8 +455,10 @@ class Genome:
 
 
 def readOGTable(orthotable_filepath, outdir, force_new_database):
-    if not os.path.exists(os.path.join(outdir, "vicinator.ogtable.pickle")) or \
-            force_new_database:
+    if (
+        not os.path.exists(os.path.join(outdir, "vicinator.ogtable.pickle"))
+        or force_new_database
+    ):
         ogtable = pd.read_csv(
             orthotable_filepath,
             sep="\t",
@@ -611,15 +621,18 @@ def parseGFF3(gff3_path):
         ("parent", "Parent"),
         ("ID", "ID"),
     ]:
-        ft_df[cname] = (
-            ft_df["attributes"]
-            .str.split(attrid + "=", n=1, expand=True)[1]
-            .str.split(";", n=1, expand=True)[0]
-        )
+        try:
 
-    ft_df["GeneID"] = ft_df["attributes"].str.extract(r"Dbxref=.?GeneID:([\d]+)")[
-        0
-    ]  # better extract from within the Dbxref= attribute ?
+            ft_df[cname] = (
+                ft_df["attributes"]
+                .str.split(attrid + "=", n=1, expand=True)[1]
+                .str.split(";", n=1, expand=True)[0]
+            )
+        except KeyError:
+            # print(cname, attrid) if a subattribute is missing
+            ft_df[cname] = float("NaN")
+
+    ft_df["GeneID"] = ft_df["attributes"].str.extract(r"Dbxref=.*?GeneID:([\d]+)")[0]
 
     ft_df.loc[
         (ft_df["feature"] == "CDS") & (ft_df["attributes"].str.contains("protein_id=")),
@@ -731,9 +744,9 @@ def main():
     if args.output_prefix:
         PREFIX = args.output_prefix
     else:
-        PREFIX = "prot_{}_k_{}".format(args.centerprotein_accession, args.k)
+        PREFIX = "prot_{}_ext_{}".format(args.centerprotein_accession, args.k)
 
-    logfilepath = pathlib.Path(args.outdir) / PREFIX + ".vicinator.log"
+    logfilepath = pathlib.Path(args.outdir) / "{}.vicinator.log".format(PREFIX)
     # logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
     logging.basicConfig(  # filename=str(logfilepath),
         level=logging.INFO,
@@ -775,7 +788,8 @@ def main():
     if len(center_index_list) > 1:
         logging.info(
             "centerprotein {} has multiple hits. Only the first hit is considered.".format(
-                args.centerprotein_accession)
+                args.centerprotein_accession
+            )
         )
     elif len(center_index_list) < 1:
         logging.exception(
@@ -806,6 +820,7 @@ def main():
 
     window_ogs = []
     for i, accession_set in enumerate(prot_accessions):
+        print(i, accession_set)
         ogs = set()
         for acc in accession_set:
             og = ref_g.getOGidFromTable(ogtable, ref_g.name, acc)
@@ -911,7 +926,9 @@ def main():
         gc.collect()
 
     full_output = "\n".join(full_output)
-    htmloutputfilepath = pathlib.Path(args.outdir) / PREFIX + "vicinator.out.html"
+    htmloutputfilepath = pathlib.Path(args.outdir) / "{}vicinator.out.html".format(
+        PREFIX
+    )
     with open(htmloutputfilepath, "w") as htmlout:
         htmlout.write(converter.convert(full_output))
 
