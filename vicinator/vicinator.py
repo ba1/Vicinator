@@ -20,6 +20,7 @@ from colorama import Style
 from colorama import init as colorinit
 import ete3
 from ansi2html import Ansi2HTMLConverter
+import multiprocessing as mp
 import logging
 import pathlib
 import gc
@@ -170,6 +171,15 @@ def parse_args():
         type=argparse.FileType("rt"),
         default=None,
         help="Optional mapping file feature file accession <tabs> replacement string",
+    )
+
+    parser.add_argument(
+        "--nprocs",
+        dest="nprocs",
+        metavar="<int>",
+        type=int,
+        default=mp.cpu_count()-1,
+        help="Number of CPUs for parallel processing of genomes. Default: Number of CPUs-1",
     )
 
     parser.add_argument("--version", action="version", version=__version__)
@@ -628,8 +638,8 @@ def parseGFF3(gff3_path):
                 .str.split(attrid + "=", n=1, expand=True)[1]
                 .str.split(";", n=1, expand=True)[0]
             )
-        except KeyError:
-            # print(cname, attrid) if a subattribute is missing
+        except:
+            logging.warning("An error occured while parsing the subattribute {} from the gff file. Probably absent.".format(attrid))
             ft_df[cname] = float("NaN")
 
     ft_df["GeneID"] = ft_df["attributes"].str.extract(r"Dbxref=.*?GeneID:([\d]+)")[0]
@@ -730,6 +740,24 @@ def profile_genome(t, window_ogs, ogtable, center, extension_size):
 
     return g
 
+def compare_taxon(t, window_ogs, ogtable, center, extension_size, label_map ):
+    logging.info("[{}] profiling ...".format(t))
+    g = profile_genome(t, window_ogs, ogtable, center, extension_size)
+    if g:
+        # runprofile.enable()
+        str_out = g.produceCMDLOutput(label_map=label_map)
+        # res = fg.WHITE + bg.BLACK + "IHateThis" + Style.RESET_ALL
+        # runprofile.disable()
+        # stats = pstats.Stats(runprofile).sort_stats('cumtime')
+        # stats.print_stats(10)
+    if str_out:
+        print(str_out)
+        logging.info("[{}] ... OK.".format(t))
+        return str_out
+    else:
+        logging.info("[{}] ... Failed.".format(t))
+    gc.collect()
+
 
 def main():
 
@@ -820,7 +848,7 @@ def main():
 
     window_ogs = []
     for i, accession_set in enumerate(prot_accessions):
-        print(i, accession_set)
+        #print(i, accession_set)
         ogs = set()
         for acc in accession_set:
             og = ref_g.getOGidFromTable(ogtable, ref_g.name, acc)
@@ -902,28 +930,35 @@ def main():
 
     ####
     ####
-    full_output = []
     converter = Ansi2HTMLConverter(dark_bg=False, scheme="solarized", markup_lines=True)
 
-    for t in taxon_feature_files:
-        logging.info("[{}] profiling ...".format(t))
+    pool = mp.Pool(processes=args.nprocs)
+    manager = mp.Manager()
+    return_dict = manager.dict()
+    logging.info("Number of CPUs used: {}".format(args.nprocs))
+    full_output = pool.starmap(compare_taxon, [(t, window_ogs, ogtable, center, extension_size, label_map) for t in taxon_feature_files])
 
-        g = profile_genome(t, window_ogs, ogtable, center, extension_size)
-
-        if g:
-            # runprofile.enable()
-            str_out = g.produceCMDLOutput(label_map=label_map)
-            # res = fg.WHITE + bg.BLACK + "IHateThis" + Style.RESET_ALL
-            # runprofile.disable()
-            # stats = pstats.Stats(runprofile).sort_stats('cumtime')
-            # stats.print_stats(10)
-        if str_out:
-            print(str_out)
-            full_output.append(str_out)
-            logging.info("[{}] ... OK.".format(t))
-        else:
-            logging.info("[{}] ... Failed.".format(t))
-        gc.collect()
+    # full_output = []
+    #
+    # for t in taxon_feature_files:
+    #     logging.info("[{}] profiling ...".format(t))
+    #
+    #     g = profile_genome(t, window_ogs, ogtable, center, extension_size)
+    #
+    #     if g:
+    #         # runprofile.enable()
+    #         str_out = g.produceCMDLOutput(label_map=label_map)
+    #         # res = fg.WHITE + bg.BLACK + "IHateThis" + Style.RESET_ALL
+    #         # runprofile.disable()
+    #         # stats = pstats.Stats(runprofile).sort_stats('cumtime')
+    #         # stats.print_stats(10)
+    #     if str_out:
+    #         print(str_out)
+    #         full_output.append(str_out)
+    #         logging.info("[{}] ... OK.".format(t))
+    #     else:
+    #         logging.info("[{}] ... Failed.".format(t))
+    #     gc.collect()
 
     full_output = "\n".join(full_output)
     htmloutputfilepath = pathlib.Path(args.outdir) / "{}vicinator.out.html".format(
