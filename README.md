@@ -98,7 +98,7 @@ optional arguments (run):
 
 >Vicinator requires a tab-separated three-column mapping of orthologs that is formatted like so:
 >
-> **group_id** tab **genome_id** tab **protein_id**
+> **group_id** &nbsp;&nbsp; \tab &nbsp;&nbsp;**genome_id** &nbsp;&nbsp; \tab &nbsp;&nbsp;**protein_id**
 
 `  --feat-tables-dir <dir_path>`
 
@@ -108,8 +108,8 @@ optional arguments (run):
 > A recommended source for these files is NCBI RefSeq. For the mapping to work, the filenames 
 > should correspond to the **genome_ids** specified in the mapping file:
 > 
-> e.g. the entry: **ortho_group1    genome_1   protein_1**
-> corresponds to a feature file named **genome_1.gff** or **genome_1_feature_table.txt** 
+> e.g. the entry: **orthogroup1 &nbsp;&nbsp;  genome1  &nbsp;&nbsp; protein1**
+> corresponds to a feature file named **genome1.gff** or **genome1_feature_table.txt** 
 > in the specified directory.
 
 `--reference <file_path>`
