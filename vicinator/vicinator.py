@@ -71,10 +71,14 @@ def writeable_dir(prospective_dir):
 def parse_args():
     parser = argparse.ArgumentParser(
         prog="Vicinator",
-        description="Track Microsynteny of a target proteins and its orthologs across genomes",
+        description="Track Microsynteny of target proteins and its orthologs across genomes.",
     )
 
-    parser.add_argument(
+    parser._action_groups.pop()
+
+    required = parser.add_argument_group('required arguments')
+
+    required.add_argument(
         "--tabular-ortholog-groups",
         dest="ogtable",
         metavar="<orthology_table>",
@@ -83,22 +87,13 @@ def parse_args():
         help="path to mapping file with format ortholog_group_id<tab>genome_id<tab>protein_seq_id",
     )
 
-    parser.add_argument(
-        "--reference",
-        dest="ref_feat_table",
-        metavar="<reference_genome_feature_table_file_path>",
-        type=argparse.FileType("rt"),
+    required.add_argument(
+        "--feat-tables-dir",
+        dest="feat_tables_dir",
+        metavar="<dir_path>",
+        type=str,
         required=True,
-        help="path to a ncbi style feature table file that acts as a reference",
-    )
-
-    parser.add_argument(
-        "--tree",
-        dest="tree",
-        metavar="<newick_tree_file_path>",
-        type=argparse.FileType("rt"),
-        required=False,
-        help="path to newick tree that includes all taxa to be screened",
+        help="path to directory of *.feature_tables.txt or *.gff3 files that shall be screen",
     )
 
     # TODO: FUTURE_FEATURE
@@ -110,43 +105,27 @@ def parse_args():
     #     help="if option is set, shows intergenic distances of genes surrounding the center gene",
     # )
 
-    parser.add_argument(
-        "--force",
-        dest="force_new_database",  # metavar='<newick_tree_file_path>',
-        action="store_true",
-        required=False,
-        default=False,
-        help="if option is set, existing ortholog databases in the output dir are ignored and will be overwritten",
+    n_group = parser.add_argument_group('required arguments (neighborhood)')
+
+    n_group.add_argument(
+        "--reference",
+        dest="ref_feat_table",
+        metavar="<file_path>",
+        type=argparse.FileType("rt"),
+        required=True,
+        help="path to a ncbi style feature table or gff file that acts as a reference",
     )
 
-    parser.add_argument(
-        "--prefix",
-        dest="output_prefix",  # metavar='<newick_tree_file_path>',
-        type=str,
-        metavar="<prefix_str_for_output>",
-        required=False,
-        help="if option is set, shows intergenic distances of genes surrounding the center gene",
-    )
-
-    parser.add_argument(
+    n_group.add_argument(
         "--centerprotein-accession",
         dest="centerprotein_accession",
-        metavar="<protein_accession_str>",
+        metavar="<str>",
         type=str,
         required=True,
         help="unique identifier of the central gene of the window",
     )
 
-    parser.add_argument(
-        "--feat-tables-dir",
-        dest="feat_tables_dir",
-        metavar="<dir_path>",
-        type=str,
-        required=True,
-        help="path to directory of *.feature_tables.txt or *.gff3 files that shall be screen",
-    )
-
-    parser.add_argument(
+    n_group.add_argument(
         "--extension-size",
         dest="k",
         metavar="<int>",
@@ -155,31 +134,63 @@ def parse_args():
         help="defines the #features that are co-checked to the left and right of the centerprotein",
     ),
 
-    parser.add_argument(
+    o_group = parser.add_argument_group("optional arguments (output)")
+
+    o_group.add_argument(
+        "--tree",
+        dest="tree",
+        metavar="<newick_tree_file_path>",
+        type=argparse.FileType("rt"),
+        required=False,
+        help="path to newick tree that includes all taxa to be screened",
+    )
+
+    o_group.add_argument(
         "--outdir",
         dest="outdir",
         metavar="<dir_path>",
         type=writeable_dir,
-        required=True,
+        required=False,
+        default=os.getcwd(),
         help="path to desired output directory",
     )
 
-    parser.add_argument(
+    o_group.add_argument(
+        "--prefix",
+        dest="output_prefix",  # metavar='<newick_tree_file_path>',
+        type=str,
+        metavar="<str>",
+        required=False,
+        help="if option is set, shows intergenic distances of genes surrounding the center gene",
+    )
+
+    o_group.add_argument(
         "--outputlabel-map",
         dest="labelmap",
         metavar="<file_path>",
         type=argparse.FileType("rt"),
         default=None,
-        help="Optional mapping file feature file accession <tabs> replacement string",
+        help="Attempts to replace genome accessions in the outputs with a replacement string. Requires a two-column map file formatted like so: 'genome file accession' <tab> 'replacement string'",
     )
 
-    parser.add_argument(
+    r_group = parser.add_argument_group('optional arguments (run)')
+
+    r_group.add_argument(
         "--nprocs",
         dest="nprocs",
         metavar="<int>",
         type=int,
         default=mp.cpu_count()-1,
         help="Number of CPUs for parallel processing of genomes. Default: Number of CPUs-1",
+    )
+
+    r_group.add_argument(
+        "--force",
+        dest="force_new_database",  # metavar='<newick_tree_file_path>',
+        action="store_true",
+        required=False,
+        default=False,
+        help="if option is set, existing ortholog databases in the output dir are ignored and will be overwritten",
     )
 
     parser.add_argument("--version", action="version", version=__version__)
@@ -238,9 +249,6 @@ class Genome:
             ft["strand"] = ft.apply(lambda row: flip_strand(row), axis=1)
 
             ft = ft.drop(["start.old", "end.old", "strand.old"], axis=1)
-
-            # TODO: Major issue here: When reversing the df, CDS features don't succeed their gene feature annot any longer
-            # TODO: An idea: first  place all gene features and then fill from top the inbetween spaces
 
             return ft
 
@@ -961,7 +969,7 @@ def main():
     #     gc.collect()
 
     full_output = "\n".join(full_output)
-    htmloutputfilepath = pathlib.Path(args.outdir) / "{}vicinator.out.html".format(
+    htmloutputfilepath = pathlib.Path(args.outdir) / "{}.vicinator.out.html".format(
         PREFIX
     )
     with open(htmloutputfilepath, "w") as htmlout:
