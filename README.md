@@ -111,15 +111,13 @@ optional arguments (run):
 >Vicinator expects the path to a directory containing *.gff* format or *_feature_table.txt* 
 > files of all the genomes you want to trace the microsynteny in.
 >
-> A recommended source for these files is NCBI RefSeq. For the mapping to work, the filenames 
+> A recommended source for these files is NCBI RefSeq. In order for the mapping to work, the filenames 
 > should correspond to the **genome_ids** specified in the mapping file:
 > 
-> e.g. line 4: **OG_2 &nbsp;&nbsp;  genomeA  &nbsp;&nbsp; protein_X002**
-><br/>
-> triggers a search in a feature file named **genomeA.gff** or **genomeA_genomic.gff** or **genomeA_feature_table.txt** 
-> in the specified directory `--feat-tables-dir´. Effectively, it will attempt to locate this the protein with the id 
-> protein_X002 in this 
-> feature file. 
+> E.g. line 7: **OG_2 &nbsp;&nbsp;  genomeB  &nbsp;&nbsp; protein_X011**
+> <br/>
+> triggers a search in a feature file named **genomeB.gff** or **genomeB_genomic.gff** or **genomeB_feature_table.txt** 
+> in the directory specified with `--feat-tables-dir`. Effectively, it tries to locate the protein_X011 in this feature file. 
 
 <br/>
 
@@ -142,8 +140,8 @@ optional arguments (run):
 
 ## Example Advanced Usage
 
-When vicinator receives a phylogenetic tree (with genome_ids as leaf labels) as input it will identify the reference 
-genome it traces the microsynteny in order of increasing phylogentic distance to the reference genome. 
+When vicinator receives a phylogenetic tree (with genome_ids as leaf labels) it will trace the microsynteny in order of 
+increasing phylogentic distance to the reference genome specified. 
 
 `vicinator --tabular-ortholog-groups orthogenome_map.tsv --feat-tables-dir ./gff_dir --outdir ./results --reference gff_dir/MUSMU@10090@1.gff --centerprotein XP_006539605.1 --extension-size 3 --tree phylogeny.nwk`
 
