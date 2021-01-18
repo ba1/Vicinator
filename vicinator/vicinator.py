@@ -70,7 +70,7 @@ def writeable_dir(prospective_dir):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        prog="Vicinator",
+        prog="vicinator",
         description="Track Microsynteny of target proteins and its orthologs across genomes.",
     )
 

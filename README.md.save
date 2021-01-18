@@ -9,28 +9,27 @@
 
 ### What is Vicinator for?
 
-Vicinator visualizes the microsynteny of grouped proteins (e.g. orthologs) across a large collection of genomes. 
-As input, it requires a mapping of the genomes' proteins to the respective protein groups and a directory containing 
-the genomes' feature files, i.e. files of the format *\*.gff* or *\*_feature_table.txt*.
-
-![image](https://user-images.githubusercontent.com/8181764/104918766-86b5e980-5995-11eb-8a6b-9f2505c74973.png)
-
+Vicinator traces and visualizes the microsynteny of a window of orthologs across genomes. It takes as input a
+mapping of proteins across different genomes to protein groups (typically orthologous groups) and
+a collection of the genome feature files, i.e. *.gff* or *_feature_table.txt*. With a user 
+specified center-protein on a reference genome and a neighborhood size the program starts tracing
+this window across the genomes.
 
 ### What is Vicinator not for?
 
-As stated above, Vicinator relies on a pre-computed grouping of proteins across genomes. It can not find these 
+Vicinator relies on a pre-computed grouping of proteins across genomes. It can not find these 
 groups of genes for you.
 
 ### Installation
 
 Vicinator is written for Python 3.6+
 
-It is recommended to install Vicinator inside a virtual environment, e.g. with venv:
+Its recommended to install vicinator in a virtual environment, e.g. with venv:
 
 `python3 -m venv myenv`
 
-This activates the new environment called *myenv*. While activated, you can install the latest version via pip. 
-The following command installs the latest version and all unmet requirements automatically.
+This activates the new environment myenv. Then, while activated, install the latest version via pip.
+This downloads and installs all unmet requirements automatically.
 
 `pip install --upgrades vicinator`
 
@@ -95,16 +94,11 @@ optional arguments (run):
 
 ### Input: Required Arguments
 
-<br/>
-
 `--tabular-ortholog-groups <orthology_table>`
 
 >Vicinator requires a tab-separated three-column mapping of orthologs that is formatted like so:
 >
 > **group_id** &nbsp;&nbsp; \tab &nbsp;&nbsp;**genome_id** &nbsp;&nbsp; \tab &nbsp;&nbsp;**protein_id**
-> ![example mapping file](https://user-images.githubusercontent.com/8181764/104924281-815c9d00-599d-11eb-9cb5-3e309f188bcd.png)
-
-<br/>
 
 `  --feat-tables-dir <dir_path>`
 
@@ -114,37 +108,52 @@ optional arguments (run):
 > A recommended source for these files is NCBI RefSeq. For the mapping to work, the filenames 
 > should correspond to the **genome_ids** specified in the mapping file:
 > 
-> e.g. line 4: **OG_2 &nbsp;&nbsp;  genomeA  &nbsp;&nbsp; protein_X002**
-><br/>
-> triggers a search in a feature file named **genomeA.gff** or **genomeA_genomic.gff** or **genomeA_feature_table.txt** 
-> in the specified directory `--feat-tables-dir´. Effectively, it will attempt to locate this the protein with the id 
-> protein_X002 in this 
-> feature file. 
-
-<br/>
+> e.g. the entry: **orthogroup1 &nbsp;&nbsp;  genome1  &nbsp;&nbsp; protein1**
+> corresponds to a feature file named **genome1.gff** or **genome1_feature_table.txt** 
+> in the specified directory.
 
 `--reference <file_path>`
 > the path to a reference genome feature file where the center-protein accession must be found
-
-<br/>
 
 `--centerprotein-accession` & `--extension-size <int>`
 
 >Identifies the window of vicinity around a center-protein which is traced based on the findings in the reference 
 > genome.  
-> ![Vicinator Window in Reference Genome](https://user-images.githubusercontent.com/8181764/104915463-f83f6900-5990-11eb-9930-552b95109d16.png)
-
-<br/>
+> E.g.  
+> Reference Genome: ... GeneT [ GeneU GeneV **GeneW** GeneX GeneY ] GeneZ ...
+> with center protein GeneW and an extension size of 2, brackets indicate window boundaries
 
 ## Example Basic Usage
 
-`vicinator --tabular-ortholog-groups orthogenome_map.tsv --feat-tables-dir ./gff_dir --outdir ./results --reference gff_dir/MUSMU@10090@1.gff --centerprotein XP_006539605.1 --extension-size 3`
+`vicinator --tabular-ortholog-groups orthogenome_map.tsv --feat-tables-dir ./gff_dir --outdir ./results --reference gff_dir/GCF_000001635.27_genomic.gff --centerprotein XP_006539605.1 --extension-size 2`
 
-## Example Advanced Usage
+Example input files:
 
-When vicinator receives a phylogenetic tree (with genome_ids as leaf labels) as input it will identify the reference 
-genome it traces the microsynteny in order of increasing phylogentic distance to the reference genome. 
+`./gff_dir/
+	GCF_000001635.27_genomic.gff
+	GCF_000001405.39_genomic.gff
+	GCF_000002315.4_genomic.gff
+	GCF_000001215.4_genomic.gff
+	GCA_902192335.1_genomic.gff´
 
-`vicinator --tabular-ortholog-groups orthogenome_map.tsv --feat-tables-dir ./gff_dir --outdir ./results --reference gff_dir/MUSMU@10090@1.gff --centerprotein XP_006539605.1 --extension-size 3 --tree phylogeny.nwk`
 
-
+`./orthogenome_map.tsv
+	
+ORTHOGR1	GCF_000001635.27	XP_006539605.1
+ORTHOGR2	GCF_000001635.27	XP_006540308.1
+ORTHOGR3	GCF_000001635.27	XP_036009397.1
+ORTHOGR4	GCF_000001635.27	XP_036009515.1
+ORTHOGR5	GCF_000001635.27	XP_017167771.1
+ORTHOGR6	GCF_000001635.27	XP_006540091.1
+ORTHOGR1	GCF_000001405.39	XP_000000011.1
+ORTHOGR2        GCF_000001405.39	XP_000000012.1
+ORTHOGR3        GCF_000001405.39	XP_000000013.1
+ORTHOGR4        GCF_000001405.39	XP_000000014.1
+ORTHOGR5        GCF_000001405.39	XP_000000015.1
+ORTHOGR8        GCF_000001405.39	XP_000000016.1
+ORTHOGR1	GCF_000002315.4 	XP_000000027.1
+ORTHOGR2        GCF_000002315.4 	XP_000000028.1
+ORTHOGR3        GCF_000002315.4 	WP_000000021.1
+ORTHOGR4        GCF_000002315.4 	XP_000000021.1
+ORTHOGR2	GCF_000003215.4 	WP_000000041.1
+ORTHOGR4        GCF_000001215.4         WP_000000041.1
