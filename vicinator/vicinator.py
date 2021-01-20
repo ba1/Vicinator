@@ -359,7 +359,8 @@ class Genome:
     def getOGidFromTable(self, ogtable, genome, pa):
 
         try:
-            og = ogtable.loc[(genome, pa)]["OG"]
+            og = ogtable[~ogtable.index.duplicated()].loc[(genome, pa)]["OG"]
+            #Note: default pandas behaviour: multi-index df loc gives a df for dfs with duplicate indexes
         except:
             return -1  # Code for missing protein information in genome
         if not og:
@@ -484,6 +485,7 @@ def readOGTable(orthotable_filepath, outdir, force_new_database):
             comment="#",
             names=["OG", "Taxon", "PA"],
         )
+        ogtable = ogtable.sort_index()
 
         outfile = open(os.path.join(outdir, "vicinator.ogtable.pickle"), "wb")
         pickle.dump(ogtable, outfile)
