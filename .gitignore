@@ -1,5 +1,6 @@
 #local cmd history
 **.dir_bash_history
+*.save
 
 #testpipy token
 .pypirc

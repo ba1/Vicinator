@@ -28,23 +28,23 @@ import gc
 # from beautifultable import BeautifulTable
 
 #### Get Version
-__version__ = "unspec"
+
 try:
     from importlib.metadata import version, PackageNotFoundError
 
-    __version__ = version(__name__)
+    __version__ = version(pathlib.Path(__file__).stem)
 except:
     try:
         # if the python version is <3.8 this module is used as backport
         from importlib_metadata import version, PackageNotFoundError
 
-        __version__ = version(__name__)
+        __version__ = version(pathlib.Path(__file__).stem)
     except:
         # if module or this python package is not installed
         from pkg_resources import get_distribution, DistributionNotFound
 
         try:
-            __version__ = get_distribution(__name__).version
+            __version__ = get_distribution(pathlib.Path(__file__).stem).version
         # except DistributionNotFound:
         except:
             # package is not installed

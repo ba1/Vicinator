@@ -27,6 +27,7 @@ setuptools.setup(
         "ete3>=3.1.2",
         "pandas>=1.1.3",
         "importlib-metadata>=3.1.1"
+        "setuptools-scm>=5.0.1"
     ],
     entry_points={
         'console_scripts': [
