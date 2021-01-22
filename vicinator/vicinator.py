@@ -8,7 +8,8 @@ Created on Apr 17, 2020
 """
 
 import argparse
-import os, pickle, sys
+import os
+import pickle
 import pandas as pd
 import warnings
 
@@ -28,23 +29,24 @@ import gc
 # from beautifultable import BeautifulTable
 
 #### Get Version
+FILENAME = pathlib.Path(__file__).stem
 
 try:
     from importlib.metadata import version, PackageNotFoundError
 
-    __version__ = version(pathlib.Path(__file__).stem)
+    __version__ = version(FILENAME)
 except:
     try:
         # if the python version is <3.8 this module is used as backport
         from importlib_metadata import version, PackageNotFoundError
 
-        __version__ = version(pathlib.Path(__file__).stem)
+        __version__ = version(FILENAME)
     except:
         # if module or this python package is not installed
         from pkg_resources import get_distribution, DistributionNotFound
 
         try:
-            __version__ = get_distribution(pathlib.Path(__file__).stem).version
+            __version__ = get_distribution(FILENAME).version
         # except DistributionNotFound:
         except:
             # package is not installed
@@ -76,7 +78,7 @@ def parse_args():
 
     parser._action_groups.pop()
 
-    required = parser.add_argument_group('required arguments')
+    required = parser.add_argument_group("required arguments")
 
     required.add_argument(
         "--tabular-ortholog-groups",
@@ -105,7 +107,7 @@ def parse_args():
     #     help="if option is set, shows intergenic distances of genes surrounding the center gene",
     # )
 
-    n_group = parser.add_argument_group('required arguments (neighborhood)')
+    n_group = parser.add_argument_group("required arguments (neighborhood)")
 
     n_group.add_argument(
         "--reference",
@@ -173,14 +175,14 @@ def parse_args():
         help="Attempts to replace genome accessions in the outputs with a replacement string. Requires a two-column map file formatted like so: 'genome file accession' <tab> 'replacement string'",
     )
 
-    r_group = parser.add_argument_group('optional arguments (run)')
+    r_group = parser.add_argument_group("optional arguments (run)")
 
     r_group.add_argument(
         "--nprocs",
         dest="nprocs",
         metavar="<int>",
         type=int,
-        default=mp.cpu_count()-1,
+        default=mp.cpu_count() - 1,
         help="Number of CPUs for parallel processing of genomes. Default: Number of CPUs-1",
     )
 
@@ -310,7 +312,9 @@ class Genome:
         ]  # slice OGtable to Genome
         if pruned_ogtable.empty:
             logging.warning(
-                "Pruning Group Table to {} gives empty table. Trying fuzzy name resolving."
+                "[{}] No orthologs found in table. Retrying with fuzzy name resolution.".format(
+                    self.name
+                )
             )
             pruned_ogtable = ogtable[
                 ogtable.index.isin(["_".join(self.name.split("_")[:2])], level=0)
@@ -360,7 +364,7 @@ class Genome:
 
         try:
             og = ogtable[~ogtable.index.duplicated()].loc[(genome, pa)]["OG"]
-            #Note: default pandas behaviour: multi-index df loc gives a df for dfs with duplicate indexes
+            # Note: default pandas behaviour: multi-index df loc gives a df for dfs with duplicate indexes
         except:
             return -1  # Code for missing protein information in genome
         if not og:
@@ -649,7 +653,11 @@ def parseGFF3(gff3_path):
                 .str.split(";", n=1, expand=True)[0]
             )
         except:
-            logging.warning("An error occured while parsing the subattribute {} from the gff file. Probably absent.".format(attrid))
+            logging.warning(
+                "An error occured while parsing the subattribute {} from the gff file. Probably absent.".format(
+                    attrid
+                )
+            )
             ft_df[cname] = float("NaN")
 
     ft_df["GeneID"] = ft_df["attributes"].str.extract(r"Dbxref=.*?GeneID:([\d]+)")[0]
@@ -723,10 +731,20 @@ def getTaxonOrder(treepath, ref_path):
 
 
 def profile_genome(t, window_ogs, ogtable, center, extension_size):
-    if t.suffix in [".gff", ".gff3"]:
-        ft_df = parseGFF3(t)
-    elif t.suffix in [".txt"]:
-        ft_df = parseFeatureTable(t)
+
+    try:
+        if t.suffix in [".gff", ".gff3"]:
+            ft_df = parseGFF3(t)
+        elif t.suffix in [".txt"]:
+            ft_df = parseFeatureTable(t)
+
+    except:
+        logging.error(
+            "[{}] Parsing error. Correct format? Note: '~.txt' files must be of format feature_table, '~.gff' files of format GFF3.".format(
+                t.name
+            )
+        )
+        return None
 
     genome_name = t.stem.replace("_feature_table", "").replace("_genomic", "")
     g = Genome(genome_name, ft_df)
@@ -738,10 +756,8 @@ def profile_genome(t, window_ogs, ogtable, center, extension_size):
         # g.annotWindowHOGs(window_ogs, only_window_ogtable)
         g.annotWindowOGs(window_ogs, ogtable, center.loc["strand"], extension_size)
     except:
-        logging.info(
-            "No orthology information found for the taxon:"
-            + g.name
-            + ". Ignoring taxon."
+        logging.error(
+            "[{}] No orthology information found. Ignoring taxon.".format(t.name)
         )
         tb = traceback.format_exc()
         return None
@@ -750,8 +766,9 @@ def profile_genome(t, window_ogs, ogtable, center, extension_size):
 
     return g
 
-def compare_taxon(t, window_ogs, ogtable, center, extension_size, label_map ):
-    logging.info("[{}] profiling ...".format(t))
+
+def compare_taxon(t, window_ogs, ogtable, center, extension_size, label_map):
+    logging.info("[{}] profiling ...".format(t.name))
     g = profile_genome(t, window_ogs, ogtable, center, extension_size)
     if g:
         # runprofile.enable()
@@ -760,12 +777,12 @@ def compare_taxon(t, window_ogs, ogtable, center, extension_size, label_map ):
         # runprofile.disable()
         # stats = pstats.Stats(runprofile).sort_stats('cumtime')
         # stats.print_stats(10)
-    if str_out:
-        print(str_out)
-        logging.info("[{}] ... OK.".format(t))
-        return str_out
+        if str_out:
+            print(str_out)
+            logging.info("[{}] ... OK.".format(t.name))
+            return str_out
     else:
-        logging.info("[{}] ... Failed.".format(t))
+        logging.warning("[{}] ... Failed. Ignoring taxon.".format(t.name))
     gc.collect()
 
 
@@ -785,6 +802,8 @@ def main():
         PREFIX = "prot_{}_ext_{}".format(args.centerprotein_accession, args.k)
 
     logfilepath = pathlib.Path(args.outdir) / "{}.vicinator.log".format(PREFIX)
+    if logfilepath.is_file():
+        pathlib.Path.unlink(logfilepath)
     # logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
     logging.basicConfig(  # filename=str(logfilepath),
         level=logging.INFO,
@@ -858,7 +877,7 @@ def main():
 
     window_ogs = []
     for i, accession_set in enumerate(prot_accessions):
-        #print(i, accession_set)
+        # print(i, accession_set)
         ogs = set()
         for acc in accession_set:
             og = ref_g.getOGidFromTable(ogtable, ref_g.name, acc)
@@ -897,6 +916,7 @@ def main():
         for p in pathlib.Path(args.feat_tables_dir).glob("*")
         if p.is_file() and p.suffix in [".gff", ".gff3", ".txt"]
     ]
+    logging.info("{} feature files (.txt,.gff) found.".format(len(taxon_feature_files)))
     if args.tree:
         taxon_order = getTaxonOrder(args.tree.name, args.ref_feat_table.name)
         ordered_taxon_feature_files = []
@@ -946,7 +966,13 @@ def main():
     manager = mp.Manager()
     return_dict = manager.dict()
     logging.info("Number of CPUs used: {}".format(args.nprocs))
-    full_output = pool.starmap(compare_taxon, [(t, window_ogs, ogtable, center, extension_size, label_map) for t in taxon_feature_files])
+    full_output = pool.starmap(
+        compare_taxon,
+        [
+            (t, window_ogs, ogtable, center, extension_size, label_map)
+            for t in taxon_feature_files
+        ],
+    )
 
     # full_output = []
     #
@@ -970,12 +996,14 @@ def main():
     #         logging.info("[{}] ... Failed.".format(t))
     #     gc.collect()
 
-    full_output = "\n".join(full_output)
+    full_output = "\n".join([f for f in full_output if f])
     htmloutputfilepath = pathlib.Path(args.outdir) / "{}.vicinator.out.html".format(
         PREFIX
     )
     with open(htmloutputfilepath, "w") as htmlout:
         htmlout.write(converter.convert(full_output))
+
+    logging.info("Finished successfully.")
 
 
 if __name__ == "__main__":
