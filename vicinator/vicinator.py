@@ -53,6 +53,28 @@ except:
             __version__ = "unspec"
 ####
 
+#TODO: New function:
+# Instead of a window around a centerprotein a list of proteins can be given.
+# There should be two modes, one where the names of the groups can be given as a list
+# and another where the protein ids can be given as a list with a required reference genome.
+
+#TODO: Seperate the final window annotation from visualization
+
+#TODO: Visualize the tree in the output
+
+#TODO: Implement an optional rerun through the featurefile to identify the found genes and extract other relevant info
+#like intergenic distance, gene annotation, gene symbols and other non-coding genes in between
+
+#TODO: Unify the output widths by putting the genes to be tracked in columns and the gene numbers in between
+
+#TODO: Improve incode documentation
+
+#TODO: Improve usage documentation and give examples or write a tutorial
+
+#TODO: Implement a scoring system that allows the quantify the relative conservedness of the neighborhood
+
+#TODO: Implement a web-version with javascript that can access the entire gff/feature_table of refseq
+
 
 def writeable_dir(prospective_dir):
     """
@@ -108,6 +130,7 @@ def parse_args():
     # )
 
     n_group = parser.add_argument_group("required arguments (neighborhood)")
+    group_ex = n_group.add_mutually_exclusive_group(required=True)
 
     n_group.add_argument(
         "--reference",
@@ -127,13 +150,23 @@ def parse_args():
         help="unique identifier of the central gene of the window",
     )
 
-    n_group.add_argument(
+    group_ex.add_argument(
         "--extension-size",
-        dest="k",
+        dest="ext_size",
         metavar="<int>",
-        type=str,
-        required=True,
+        type=int,
+        required=False,
         help="defines the #features that are co-checked to the left and right of the centerprotein",
+    ),
+
+    group_ex.add_argument(
+        "--extension-mask",
+        dest="ext_mask",
+        metavar="<int>",
+        type=int,
+        nargs='+',
+        required=False,
+        help="defines the position of features that are co-checked to the left and right relative to the centerprotein (position 0).",
     ),
 
     o_group = parser.add_argument_group("optional arguments (output)")
@@ -292,7 +325,7 @@ class Genome:
                     # TODO: Idea: leave the original indices to avoid to problem of messed up
                     # consecutive order of GENE and CDS Features
 
-    def annotWindowOGs(self, window_ogs, ogtable, center_strand, extension_size):
+    def annotWindowOGs(self, window_ogs, ogtable, center_strand, extension_mask):
         def mapPAtoOG(ogset, pa2og_dict):
             if not ogset or (ogset != ogset):
                 return float("nan")
@@ -344,7 +377,7 @@ class Genome:
                     #     pos_dict[og] = [i - extension_size]
                     # else:
                     #     pos_dict[og].append(i - extension_size)
-                    pos_dict[og] = i - extension_size  # relevant position
+                    pos_dict[og] = extension_mask[i]  # relevant position
 
         # reduce dict to relevant ones only
         # reduced_pa2og_dict = {pa:og for pa,og in pa2og_dict.items() if og in window_ogs} #subset of relevant pa2hogs
@@ -395,7 +428,7 @@ class Genome:
 
         return indices
 
-    def findProteinAccessionIndicesOfWindow(self, k, center):
+    def findProteinAccessionIndicesOfWindow(self, extension_mask, center):
         """get upstream and downstream neighboring indexes of CDS and their gene feature"""
 
         center_genomic_accession = self.feature_df.loc[center.name]["genomic_accession"]
@@ -409,18 +442,20 @@ class Genome:
         upstream = []
         downstream = []
 
-        for i in range(1, k + 1):
-            if c - i >= 0:
-                upstream.append(df.iloc[c - i].name)
-            else:
-                upstream.append("")
+        for i in extension_mask:
+            if i < 0:
+                if c + i >= 0: #if the contig position exceeds the contig indicate by "" in window
+                    upstream.append(df.iloc[c + i].name)
+                else:
+                    upstream.append("")
 
-            if c + i <= len(df) - 1:
-                downstream.append(df.iloc[c + i].name)
-            else:
-                downstream.append("")
+            if i > 0:
+                if c + i <= len(df) - 1:
+                    downstream.append(df.iloc[c + i].name)
+                else:
+                    downstream.append("")
 
-        return upstream[::-1] + [center.name] + downstream
+        return upstream + [center.name] + downstream
 
     def produceCMDLOutput(self, label_map=None):
 
@@ -730,7 +765,7 @@ def getTaxonOrder(treepath, ref_path):
     return t.get_leaf_names()
 
 
-def profile_genome(t, window_ogs, ogtable, center, extension_size):
+def profile_genome(t, window_ogs, ogtable, center, extension_mask):
 
     try:
         if t.suffix in [".gff", ".gff3"]:
@@ -754,7 +789,7 @@ def profile_genome(t, window_ogs, ogtable, center, extension_size):
     try:
         # only_window_ogtable = ogtable[ogtable["OG"].isin(window_ogs)]
         # g.annotWindowHOGs(window_ogs, only_window_ogtable)
-        g.annotWindowOGs(window_ogs, ogtable, center.loc["strand"], extension_size)
+        g.annotWindowOGs(window_ogs, ogtable, center.loc["strand"], extension_mask)
     except:
         logging.error(
             "[{}] No orthology information found. Ignoring taxon.".format(t.name)
@@ -767,9 +802,9 @@ def profile_genome(t, window_ogs, ogtable, center, extension_size):
     return g
 
 
-def compare_taxon(t, window_ogs, ogtable, center, extension_size, label_map):
+def compare_taxon(t, window_ogs, ogtable, center, extension_mask, label_map):
     logging.info("[{}] profiling ...".format(t.name))
-    g = profile_genome(t, window_ogs, ogtable, center, extension_size)
+    g = profile_genome(t, window_ogs, ogtable, center, extension_mask)
     if g:
         # runprofile.enable()
         str_out = g.produceCMDLOutput(label_map=label_map)
@@ -799,7 +834,11 @@ def main():
     if args.output_prefix:
         PREFIX = args.output_prefix
     else:
-        PREFIX = "prot_{}_ext_{}".format(args.centerprotein_accession, args.k)
+        if args.ext_mask:
+            extension_info = "custom_mask"
+        elif args.ext_size:
+            extension_info = args.ext_size
+        PREFIX = "prot_{}_ext_{}".format(args.centerprotein_accession, extension_info)
 
     logfilepath = pathlib.Path(args.outdir) / "{}.vicinator.log".format(PREFIX)
     if logfilepath.is_file():
@@ -863,9 +902,16 @@ def main():
     ]  # only take the first of all hits of the central protein
 
     # FIND UPSTREAM AND DOWNSTREAM PROTEINS
-    extension_size = int(args.k)
+    if args.ext_size:
+        extension_size = abs(int(args.ext_size))
+        extension_mask = tuple(range(-extension_size, extension_size+1))
+    if args.ext_mask:
+        extension_mask = [int(x) for x in args.ext_mask]
+        if 0 not in extension_mask:
+            extension_mask.append(0)
+        extension_mask = tuple(sorted(extension_mask))
 
-    window = ref_g.findProteinAccessionIndicesOfWindow(extension_size, center)
+    window = ref_g.findProteinAccessionIndicesOfWindow(extension_mask, center)
 
     prot_accessions = [
         ref_g.feature_df.loc[i]["product_accession"] if i != "" else "" for i in window
@@ -969,7 +1015,7 @@ def main():
     full_output = pool.starmap(
         compare_taxon,
         [
-            (t, window_ogs, ogtable, center, extension_size, label_map)
+            (t, window_ogs, ogtable, center, extension_mask, label_map)
             for t in taxon_feature_files
         ],
     )
