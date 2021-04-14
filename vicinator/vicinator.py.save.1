@@ -205,7 +205,7 @@ def parse_args():
         metavar="<file_path>",
         type=argparse.FileType("rt"),
         default=None,
-        help="Attempts to replace genome accessions in the outputs with a replacement string. Requires a two-column map file formatted like so: 'genome file accession' <tab> 'replacement string'. The replacement will automatically be cut to a maximum of 30 chars.",
+        help="Attempts to replace genome accessions in the outputs with a replacement string. Requires a two-column map file formatted like so: 'genome file accession' <tab> 'replacement string'",
     )
 
     r_group = parser.add_argument_group("optional arguments (run)")
@@ -435,9 +435,12 @@ class Genome:
 
         filter1 = self.feature_df["class"] == "protein_coding"
         filter2 = self.feature_df["genomic_accession"] == center_genomic_accession
-
+        print(self.feature_df)
+        self.feature_df.to_csv('res1', sep='\t')
         df = self.feature_df[filter1 & filter2]
-
+	print("###########")
+        print(center.name)
+        print(center_genomic_accession)
         c = df.index.get_loc(center.name)
 
         upstream = []
@@ -546,14 +549,9 @@ class Genome:
                 if ogpos == 0:
                     del basket_list[-2:]
 
-        if label_map: ## currently: replace and cut the label to be exactly 30 characters long
-            label_with_blanks = label_map[self.name] + 40* " "
-            cut_label = label_with_blanks[0:30]
-            if len(cut_label[30:].replace(' ','')) != 0:
-                cut_label = cut_label[0:28] + '..'
+        if label_map:
             return (
-                #self.name + "\t" + label_map[self.name] + "\t" + " ".join(basket_list)
-                cut_label + "\t" + " ".join(basket_list)
+                self.name + "\t" + label_map[self.name] + "\t" + " ".join(basket_list)
             )
         else:
             return self.name + "\t" + " ".join(basket_list)
