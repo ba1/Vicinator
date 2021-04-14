@@ -548,9 +548,10 @@ class Genome:
 
         if label_map: ## currently: replace and cut the label to be exactly 30 characters long
             label_with_blanks = label_map[self.name] + 40* " "
-            cut_label = label_with_blanks[0:30]
-            if len(cut_label[30:].replace(' ','')) != 0:
-                cut_label = cut_label[0:28] + '..'
+            if len(label_with_blanks[30:].replace(' ','')) != 0:
+                cut_label = label_with_blanks[0:28] + '..'
+            else:
+                cut_label = label_with_blanks[0:30]
             return (
                 #self.name + "\t" + label_map[self.name] + "\t" + " ".join(basket_list)
                 cut_label + "\t" + " ".join(basket_list)

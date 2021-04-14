@@ -47,12 +47,11 @@ Requirements:
 ```
 python3 vicinator/vicinator.py --help
                                                                                                                                                                                                   
-usage: Vicinator [-h] --tabular-ortholog-groups <orthology_table>
-                 --feat-tables-dir <dir_path> --reference <file_path>
-                 --centerprotein-accession <str> --extension-size <int>
-                 [--tree <newick_tree_file_path>] [--outdir <dir_path>]
-                 [--prefix <str>] [--outputlabel-map <file_path>]
-                 [--nprocs <int>] [--force] [--version]
+usage: vicinator [-h] --tabular-ortholog-groups <orthology_table> --feat-tables-dir <dir_path>
+                 --reference <file_path> --centerprotein-accession <str>
+                 (--extension-size <int> | --extension-mask <int> [<int> ...])
+                 [--tree <newick_tree_file_path>] [--outdir <dir_path>] [--prefix <str>]
+                 [--outputlabel-map <file_path>] [--nprocs <int>] [--force] [--version]
 
 Track Microsynteny of target proteins and its orthologs across genomes.
 
@@ -61,37 +60,38 @@ required arguments:
                         path to mapping file with format
                         ortholog_group_id<tab>genome_id<tab>protein_seq_id
   --feat-tables-dir <dir_path>
-                        path to directory of *.feature_tables.txt or *.gff3
-                        files that shall be screen
+                        path to directory of *.feature_tables.txt or *.gff3 files that shall be
+                        screen
 
 required arguments (neighborhood):
   --reference <file_path>
-                        path to a ncbi style feature table file that acts as a
-                        reference
+                        path to a ncbi style feature table or gff file that acts as a reference
   --centerprotein-accession <str>
                         unique identifier of the central gene of the window
   --extension-size <int>
-                        defines the #features that are co-checked to the left
-                        and right of the centerprotein
+                        defines the #features that are co-checked to the left and right of the
+                        centerprotein
+  --extension-mask <int> [<int> ...]
+                        defines the position of features that are co-checked to the left and right
+                        relative to the centerprotein (position 0).
 
 optional arguments (output):
   --tree <newick_tree_file_path>
-                        path to newick tree that includes all taxa to be
-                        screened
+                        path to newick tree that includes all taxa to be screened
   --outdir <dir_path>   path to desired output directory
-  --prefix <str>        if option is set, shows intergenic distances of genes
-                        surrounding the center gene
+  --prefix <str>        if option is set, shows intergenic distances of genes surrounding the
+                        center gene
   --outputlabel-map <file_path>
-                        Attempts to replace genome accessions in the outputs
-                        with a replacement string. Requires a two-column map
-                        file formatted like so: 'genome file accession' <tab>
-                        'replacement string'
+                        Attempts to replace genome accessions in the outputs with a replacement
+                        string. Requires a two-column map file formatted like so: 'genome file
+                        accession' <tab> 'replacement string'. The replacement will automatically
+                        be cut to a maximum of 30 chars.
 
 optional arguments (run):
-  --nprocs <int>        Number of CPUs for parallel processing of genomes.
-                        Default: Number of CPUs-1
-  --force               if option is set, existing ortholog databases in the
-                        output dir are ignored and will be overwritten
+  --nprocs <int>        Number of CPUs for parallel processing of genomes. Default: Number of
+                        CPUs-1
+  --force               if option is set, existing ortholog databases in the output dir are
+                        ignored and will be overwritten
 ```
 
 ### Input: Required Arguments
@@ -147,3 +147,10 @@ increasing phylogentic distance to the reference genome specified.
 `vicinator --tabular-ortholog-groups orthogenome_map.tsv --feat-tables-dir ./gff_dir --outdir ./results --reference gff_dir/MUSMU@10090@1.gff --centerprotein XP_006539605.1 --extension-size 3 --tree phylogeny.nwk`
 
 
+## Example Advanced Usage 2
+
+When vicinator is started with the `--extension-mask` parameter it excpects a space-separated list of integers representing
+the relative positions of proteins to the center-protein vicinator will trace. You don't have to give
+them in order since they will be sorted automatically with 0 representing the center protein (always included).
+
+`vicinator --tabular-ortholog-groups orthogenome_map.tsv --feat-tables-dir ./gff_dir --outdir ./results --reference gff_dir/MUSMU@10090@1.gff --centerprotein XP_006539605.1 --extension-mask -35 -1 0 7 9`
